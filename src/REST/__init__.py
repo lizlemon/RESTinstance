@@ -169,6 +169,7 @@ class REST(Keywords):
                 }
             }
         }
+        self.session = None
         self.schema.update(self._input_object(schema))
         self.spec = {}
         self.spec.update(self._input_object(spec))

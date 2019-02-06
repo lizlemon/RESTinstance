@@ -34,7 +34,7 @@ from genson import SchemaBuilder
 from jsonpath_ng.ext import parse as parse_jsonpath
 from jsonschema import validate, FormatChecker
 from jsonschema.exceptions import SchemaError, ValidationError
-from requests import request as client
+import requests
 from requests.exceptions import SSLError, Timeout
 
 if IS_PYTHON_2:
@@ -90,6 +90,12 @@ class Keywords(object):
         """
         self.request['headers'].update(self._input_object(headers))
         return self.request['headers']
+
+    @keyword(name=None, tags=("settings",))
+    def cookie_authentication(self, authinfo, ssl_verify=True):
+        if self.session is None:
+            self.session = requests.Session()
+        self.session.post(authinfo, verify=False)
 
     @keyword(name=None, tags=("expectations",))
     def expect_request(self, schema, merge=False):
@@ -1208,15 +1214,21 @@ class Keywords(object):
         request['netloc'] = url_parts.netloc
         request['path'] = url_parts.path
         try:
-            response = client(request['method'], request['url'],
-                              params=request['query'],
-                              json=request['body'],
-                              headers=request['headers'],
-                              proxies=request['proxies'],
-                              cert=request['cert'],
-                              timeout=tuple(request['timeout']),
-                              allow_redirects=request['allowRedirects'],
-                              verify=request['sslVerify'])
+            if self.session:
+                client = self.session
+            else:
+                client = requests
+            response = getattr(client, request['method'].lower())(
+                request['url'],
+                params=request['query'],
+                json=request['body'],
+                headers=request['headers'],
+                proxies=request['proxies'],
+                cert=request['cert'],
+                timeout=tuple(request['timeout']),
+                allow_redirects=request['allowRedirects'],
+                verify=request['sslVerify']
+            )
         except SSLError as e:
             raise AssertionError("%s to %s SSL certificate verify failed:\n%s" %
                 (request['method'], request['url'], e))
